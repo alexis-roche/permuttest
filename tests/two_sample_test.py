@@ -13,6 +13,7 @@ def load_data_from_excel(filename):
 
     subjects = []
     effects = []
+    covariates = []
     rois = []
     groups = []
     groups_row = []
@@ -21,16 +22,21 @@ def load_data_from_excel(filename):
 
     for s in range(0, xls.nsheets):
         sheet = xls.sheet_by_index(s)
-        effects.append(sheet.name)
+        if sheet.name == "Covariates" :
+            for j in range(1, sheet.ncols):
+                covariates.append(sheet.cell(0, j).value)
+        else:
+            effects.append(sheet.name)
+            
+            # check if the COLUMN HEADERS match across sheets
+            if len(rois) == 0 :
+                for j in range(1, sheet.ncols):
+                    rois.append(sheet.cell(0, j).value)
+            else :
+                for j in range(1, sheet.ncols):
+                    if not sheet.cell(0, j).value == rois[j - 1]:
+                        raise ValueError('column headers dont match in sheet %s' % sheet.name)
 
-        # check if the COLUMN HEADERS match across sheets
-        for j in range(1, sheet.ncols):
-            if s == 0:
-                rois.append(sheet.cell(0, j).value)
-            else:
-                if not sheet.cell(0, j).value == rois[j - 1]:
-                    raise ValueError('column headers dont match in sheet %s'\
-                                         % sheet.name)
 
         # check if the SUBJECT NAMES match across sheets
         for j in range(1, sheet.nrows):
@@ -53,22 +59,26 @@ def load_data_from_excel(filename):
     groups_n.append(len(subjects) - groups_row[len(groups) - 1] + 1)
 
     # print details of the DATA loaded
-    print "\n-> Table content:"
-    print "\n   * %d subjects divided into %d groups:"\
+    print "\n-> Table content"
+    print "\n   * %d subjects divided into %d groups"\
         % (len(subjects), len(groups))
     for i in range(0, len(groups)):
         print "        - '%s' (%d subjects)" % (groups[i], groups_n[i])
-    print "\n   * %d rois:" % len(rois)
+    print "\n   * %d rois" % len(rois)
     for i in range(0, len(rois)):
         print "        - '%s'" % rois[i]
-    print "\n   * %d effects:" % len(effects)
+    print "\n   * %d effects" % len(effects)
     for i in range(0, len(effects)):
         print "        - '%s'" % effects[i]
+    print "\n   * %d covariates" % len(covariates)
+    for i in range(0, len(covariates)):
+        print "        - '%s'" % covariates[i]
 
-    return xls, subjects, rois, effects, groups, groups_row, groups_n
+    return xls, subjects, rois, effects, covariates, groups, groups_row, groups_n
 
 
-# main
+# main function
+# =============
 if len(sys.argv) < 2:
     print('USAGE: %s <data.xls> [permutations]' % sys.argv[0])
     sys.exit(0)
@@ -79,9 +89,12 @@ else:
     nPERMUTATIONS = int(sys.argv[2])
 
 DATA_basename, DATA_extension = os.path.splitext(sys.argv[1])
-xls, subjects, rois, effects, groups, groups_row, groups_n =\
+xls, subjects, rois, effects, covariates, groups, groups_row, groups_n =\
     load_data_from_excel('%s.xls' % DATA_basename)
 
+
+# COPY the data to the OUTPUT EXCEL FILE
+# ======================================
 xls_out = xlwt.Workbook()
 
 Style_1 = xlwt.easyxf("font: color-index red; align: horiz center",
@@ -100,6 +113,10 @@ for r in range(0, len(rois)):
     sheet_out.write(0 + nTESTs + 2, r + 1, rois[r], Style_3)
     sheet_out.col(r + 1).width = 15 * 256
 
+
+# Permutation tests
+# =================
+
 print "\n-> Running pairwise PERMUTATION TESTS:\n"
 OUT_row = 1
 for i1 in range(0, len(groups)):
@@ -114,7 +131,7 @@ for i1 in range(0, len(groups)):
         Y1 = np.zeros([groups_n[i1], len(rois), len(effects)])
         Y2 = np.zeros([groups_n[i2], len(rois), len(effects)])
         for e in range(0, len(effects)):
-            sheet = xls.sheet_by_index(e)
+            sheet = xls.sheet_by_name( effects[e] )
 
             for r in range(0, len(rois)):
                 for s in range(0, groups_n[i1]):
@@ -123,7 +140,18 @@ for i1 in range(0, len(groups)):
                     Y2[s, r, e] = sheet.cell(groups_row[i2] + s, r + 1).value
 
         # run the test
-        t, T, pu, p = permutation_test(Y1, Y2, permutations=nPERMUTATIONS)
+        if len(covariates) == 0 :
+            t, T, pu, p = permutation_test(Y1, Y2, permutations=nPERMUTATIONS)
+        else :
+            # prepare covariates
+            CONFOUNDS = np.zeros([len(covariates), groups_n[i1]+groups_n[i2]])
+            sheet = xls.sheet_by_name( "Covariates" )
+            for c in range(0, len(covariates)):
+                for s in range(0, groups_n[i1]):
+                    CONFOUNDS[c,s] = sheet.cell(groups_row[i1] + s, c + 1).value
+                for s in range(0, groups_n[i2]):
+                    CONFOUNDS[c, groups_n[i1]+s] = sheet.cell(groups_row[i2] + s, c + 1).value
+            t, T, pu, p = permutation_test(Y1, Y2, permutations=nPERMUTATIONS, confounds=CONFOUNDS)
 
         # add to the spreadsheet
         for r in range(0, len(rois)):
@@ -139,6 +167,6 @@ for i1 in range(0, len(groups)):
 
 
 # writing results to file
-print "\n-> writing results to file...",
+print "\n-> Writing the results to file...",
 xls_out.save("%s__results.xls" % DATA_basename)
 print " [ OK ]"
