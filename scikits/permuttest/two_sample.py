@@ -1,23 +1,6 @@
 import numpy as np
-from scipy.linalg import cho_solve, cho_factor
 
 TINY = 1e-100
-
-
-def _hotelling_t_square(Y, n1):
-    M1 = np.mean(Y[0:n1, ...], 0)
-    M2 = np.mean(Y[n1::, ...], 0)
-    dM = M1 - M2
-    n = Y.shape[0]
-    T2 = np.zeros(Y.shape[1])
-    for i in range(Y.shape[1]):
-        y = Y[:, i, :]
-        y -= np.mean(y, 0)
-        V = np.dot(y.T, y) / (n - 2)
-        L, lower = cho_factor(V)  # V = L L.T
-        x = cho_solve((L, lower), dM[i, :])
-        T2[i] = n * np.sum(x ** 2)
-    return T2
 
 
 def design_matrix(n, n1, confounds):
@@ -65,9 +48,9 @@ def hotelling_t_square(Y, n1, confounds=None):
         beta = np.dot(pinvX, y)
         res = y - np.dot(X, beta)
         V = np.dot(res.T, res) / (n - X.shape[1])
-        L, lower = cho_factor(V)  # V = L L.T
-        x = cho_solve((L, lower), beta[0, :])
-        T2[i] = factor * np.sum(x ** 2)
+        x = np.linalg.solve(V, beta[0, :])
+        T2[i] = factor * np.dot(beta[0, :], x)
+
     return T2
 
 
