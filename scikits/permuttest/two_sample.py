@@ -33,6 +33,10 @@ def t_stat(Y, n1, confounds=None):
     return beta[0] / np.maximum(np.sqrt(s2 * invXtX[0, 0]), TINY)
 
 
+def t_square(Y, n1, confounds=None):
+    return t_stat(Y, n1, confounds) ** 2
+
+
 def hotelling_t_square(Y, n1, confounds=None):
     """
     Use Cholesky decomposition to invert the variance matrix
@@ -54,17 +58,19 @@ def hotelling_t_square(Y, n1, confounds=None):
     return T2
 
 
-def permutation_test(Y1, Y2, permutations=1000, confounds=None):
+def permutation_test(Y1, Y2, permutations=1000, confounds=None,
+                     two_sided=False):
     """
     Each input array should be of shape (subjects, regions, contrasts).
     """
     Y = np.concatenate((Y1, Y2))
+    univ_stat = (t_stat, t_square)
     if Y.ndim == 2:
-        stat = t_stat
+        stat = univ_stat[two_sided]
     elif Y.ndim == 3:
         if Y.shape[2] == 1:
             Y = Y.reshape(Y.shape[0:2])
-            stat = t_stat
+            stat = univ_stat[two_sided]
         else:
             stat = hotelling_t_square
     else:

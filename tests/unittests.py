@@ -2,8 +2,7 @@ import numpy as np
 from scikits.permuttest.two_sample import (permutation_test,
                                            t_stat,
                                            hotelling_t_square,
-                                           design_matrix,
-                                           _hotelling_t_square)
+                                           design_matrix)
 
 
 
@@ -22,6 +21,12 @@ def test_hotelling_t_square():
     t2 = t_stat(Y.squeeze(), 5) ** 2
     T2 = hotelling_t_square(Y, 5)
     return t2, T2
+
+Y = np.random.normal(size=(10, 100, 1))
+Y[0:5, :] += 3
+t, T, pu, p = permutation_test(Y[0:5, ...], Y[5:, ...], permutations=100)
+t2, T2, pu2, p2 = permutation_test(Y[0:5, ...], Y[5:, ...], permutations=100, two_sided=True)
+
 
 """
 # 10 subjects, 7 regions, 2 contrasts
