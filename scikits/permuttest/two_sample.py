@@ -81,8 +81,12 @@ def permutation_test(Y1, Y2, permutations=1000, confounds=None,
     # generate random permutations
     T = np.zeros((permutations, Y.shape[1]))
     for i in range(permutations):
-        Yp = Y[np.random.permutation(n), ...]
-        T[i, :] = stat(Yp, n1, confounds)
+        permut = np.random.permutation(n)
+        Yp = Y[permut, ...]
+        confounds_p = None
+        if not confounds == None:
+            confounds_p = tuple([c[permut] for c in confounds])
+        T[i, :] = stat(Yp, n1, confounds_p)
     # uncorrected p-values
     pu = np.sum(T >= t, 0) / float(permutations)
     # p-values corrected for the family-wise error rate
