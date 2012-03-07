@@ -24,12 +24,10 @@ age = np.random.rand(10)
 T1 = hotelling_t_square(Y, 5, confounds=(age, ))
 
 # test permutation test
-"""
 t, T, pu, p = permutation_test(Y[0:5, ...], Y[5:, ...],
-                               confounds=(age, ), permutations=10)
-"""
+                               confounds=(age, ), permutations=100)
 
-t, T, pu, p = permutation_test(Y[0:5, :, 0], Y[5:, :, 0],
-                               confounds=(age, ), permutations=10)
+t, T, pu, p = permutation_test(Y[0:5, :, 0] + 2, Y[5:, :, 0],
+                               confounds=(age, ), permutations=100)
 
-t, T, pu, p = permutation_test(Y[0:5, :, 0], Y[5:, :, 0], permutations=10)
+#t, T, pu, p = permutation_test(Y[0:5, :, 0] + 2, Y[5:, :, 0], permutations=100)

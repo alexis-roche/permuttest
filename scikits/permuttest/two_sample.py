@@ -59,7 +59,7 @@ def hotelling_t_square(Y, n1, confounds=None):
 
 
 def permutation_test(Y1, Y2, permutations=1000, confounds=None,
-                     two_sided=False):
+                     two_sided=True):
     """
     Each input array should be of shape (subjects, regions, contrasts).
     """
