@@ -20,14 +20,18 @@ Y = np.random.normal(size=(10, 100, 2))
 T0 = hotelling_t_square(Y, 5)
 
 # test hotelling stat with confounds
-age = np.random.rand(10)
+#age = np.random.rand(10)
+age = np.zeros(10) + .01 * np.random.rand(10)
+age[0:5] += 1. 
+
 T1 = hotelling_t_square(Y, 5, confounds=(age, ))
 
 # test permutation test
 t, T, pu, p = permutation_test(Y[0:5, ...], Y[5:, ...],
                                confounds=(age, ), permutations=100)
 
-t, T, pu, p = permutation_test(Y[0:5, :, 0] + 2, Y[5:, :, 0],
-                               confounds=(age, ), permutations=100)
+t, T, pu, p = permutation_test(Y[0:5, :, 0] + 5, Y[5:, :, 0],
+                               confounds=(age, ), permutations=100,
+                               two_sided=False)
 
 #t, T, pu, p = permutation_test(Y[0:5, :, 0] + 2, Y[5:, :, 0], permutations=100)

@@ -59,7 +59,7 @@ def load_data_from_excel(filename):
     groups_n.append(len(subjects) - groups_row[len(groups) - 1] + 1)
 
     # print details of the DATA loaded
-    print "\n-> Table content"
+    print "\n-> Table content:"
     print "\n   * %d subjects divided into %d groups"\
         % (len(subjects), len(groups))
     for i in range(0, len(groups)):
@@ -80,14 +80,31 @@ def load_data_from_excel(filename):
 # main function
 # =============
 if len(sys.argv) < 2:
-    print('USAGE: %s <data.xls> [permutations]' % sys.argv[0])
+    print('USAGE: %s <data.xls> [permutations] [tails] [use_covariates]' % sys.argv[0])
     sys.exit(0)
 
-if (len(sys.argv) < 3):
+if len(sys.argv) < 3:
     nPERMUTATIONS = 10000
 else:
     nPERMUTATIONS = int(sys.argv[2])
 
+if len(sys.argv) < 4:
+    nTAILS = 1
+else:
+    nTAILS = int(sys.argv[3])
+    if nTAILS != 1 and nTAILS != 2:
+        print('USAGE: %s <data.xls> [permutations] [tails] [use_covariates]' % sys.argv[0])
+        print('\n       "tails" parameter accepts only 1 or 2')
+        sys.exit(0)
+
+if len(sys.argv) < 5:
+    use_covariates = 0
+else:
+    use_covariates = int(sys.argv[4])
+    if use_covariates != 0 and use_covariates != 1 :
+        print('USAGE: %s <data.xls> [permutations] [tails] [use_covariates]' % sys.argv[0])
+        print('\n       "use_covariates" parameter accepts only 0 or 1')
+        sys.exit(0)
 DATA_basename, DATA_extension = os.path.splitext(sys.argv[1])
 xls, subjects, rois, effects, covariates, groups, groups_row, groups_n =\
     load_data_from_excel('%s.xls' % DATA_basename)
@@ -117,7 +134,9 @@ for r in range(0, len(rois)):
 # Permutation tests
 # =================
 
-print "\n-> Running pairwise PERMUTATION TESTS:\n"
+print "\n-> Running pairwise PERMUTATION TESTS:"
+print "      - %d tail(s)" % (nTAILS)
+print "      - %d permutations\n" % (nPERMUTATIONS)
 OUT_row = 1
 for i1 in range(0, len(groups)):
     for i2 in range(i1 + 1, len(groups)):
@@ -140,8 +159,8 @@ for i1 in range(0, len(groups)):
                     Y2[s, r, e] = sheet.cell(groups_row[i2] + s, r + 1).value
 
         # run the test
-        if len(covariates) == 0 :
-            t, T, pu, p = permutation_test(Y1, Y2, permutations=nPERMUTATIONS)
+        if len(covariates) == 0 or use_covariates == False :
+            t, T, pu, p = permutation_test(Y1, Y2, permutations=nPERMUTATIONS, confounds=None, two_sided=(True if nTAILS == 2 else False))
         else :
             # prepare covariates
             CONFOUNDS = np.zeros([len(covariates), groups_n[i1]+groups_n[i2]])
@@ -151,7 +170,8 @@ for i1 in range(0, len(groups)):
                     CONFOUNDS[c,s] = sheet.cell(groups_row[i1] + s, c + 1).value
                 for s in range(0, groups_n[i2]):
                     CONFOUNDS[c, groups_n[i1]+s] = sheet.cell(groups_row[i2] + s, c + 1).value
-            t, T, pu, p = permutation_test(Y1, Y2, permutations=nPERMUTATIONS, confounds=CONFOUNDS)
+
+            t, T, pu, p = permutation_test(Y1, Y2, permutations=nPERMUTATIONS, confounds=CONFOUNDS, two_sided=(True if nTAILS == 2 else False))
 
         # add to the spreadsheet
         for r in range(0, len(rois)):
@@ -168,5 +188,8 @@ for i1 in range(0, len(groups)):
 
 # writing results to file
 print "\n-> Writing the results to file...",
-xls_out.save("%s__results.xls" % DATA_basename)
+if len(covariates) == 0 or use_covariates == False :
+    xls_out.save("%s__resultsNoCovariates.xls" % DATA_basename)
+else:
+    xls_out.save("%s__resultsWithCovariates.xls" % DATA_basename)
 print " [ OK ]"
